@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
@@ -25,7 +24,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 
-	if err := api.LoadApis(*apiFile); err != nil {
+	if err := api.LoadApis(*apiFile, cfg); err != nil {
 		log.Fatalf("Failed to load APIs: %v", err)
 	}
 
@@ -53,7 +52,7 @@ func main() {
 	totalCasesCompleted := 0
 	for _, testCase := range testFlow.Cases {
 		fmt.Printf("Running test case: %s\n", testCase.Name)
-		requestsChan := make(chan config.Request, testCase.Loop*len(testCase.Steps))
+		requestsChan := make(chan config.TestCase, testCase.Loop*len(testCase.Steps))
 		var wg sync.WaitGroup
 
 		for i := 0; i < testCase.Thread; i++ {
@@ -66,25 +65,7 @@ func main() {
 		}
 
 		for i := 0; i < testCase.Loop*testCase.Thread; i++ {
-			for _, step := range testCase.Steps {
-				executor, found := api.GetAPIExecutor(step)
-				if !found {
-					log.Printf("API method not found: %s", step)
-					continue
-				}
-				rawResponse := executor(testCase.Variables)
-				// todo rawResponse 不应该是requestData
-				var requestData map[string]interface{}
-				if err := json.Unmarshal(rawResponse, &requestData); err != nil {
-					log.Printf("Error unmarshalling request data: %v", err)
-					continue
-				}
-
-				requestsChan <- config.Request{
-					Method: requestData["method"].(string),
-					Params: requestData["params"].([]interface{}),
-				}
-			}
+			requestsChan <- testCase
 		}
 		close(requestsChan)
 

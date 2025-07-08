@@ -1,12 +1,11 @@
 package worker
 
 import (
-	"bytes"
-	"encoding/json"
+	"errors"
 	"fmt"
-	"net/http"
 	"time"
 
+	"perf-tester/pkg/api"
 	"perf-tester/pkg/config"
 )
 
@@ -46,42 +45,35 @@ func NewWorker(id int, config *config.Config, resultsChan chan<- Result) *Worker
 }
 
 // Run starts the worker
-func (w *Worker) Run(requests <-chan config.Request) {
+func (w *Worker) Run(requests <-chan config.TestCase) {
 	for req := range requests {
 		w.sendRequest(req)
 	}
 }
 
 // sendRequest sends a single JSON-RPC request
-func (w *Worker) sendRequest(req config.Request) {
+func (w *Worker) sendRequest(testCase config.TestCase) {
 	if w.Config == nil {
 		w.ResultsChan <- Result{Error: fmt.Errorf("worker config is nil")}
 		return
 	}
 	startTime := time.Now()
-
-	requestBody, err := json.Marshal(map[string]interface{}{
-		"jsonrpc": "2.0",
-		"method":  req.Method,
-		"params":  req.Params,
-		"id":      w.ID,
-	})
-	if err != nil {
-		w.ResultsChan <- Result{Error: err}
-		return
+	for _, step := range testCase.Steps {
+		executor, found := api.GetAPIExecutor(step)
+		if !found {
+			continue
+		}
+		resp := executor(testCase.Variables)
+		if _, ok := resp["error"]; !ok {
+			w.ResultsChan <- Result{
+				Duration: time.Since(startTime),
+				Error:    errors.New(resp["error"].(string)),
+			}
+		}
 	}
-
-	resp, err := http.Post(w.Config.URL, "application/json", bytes.NewBuffer(requestBody))
-	if err != nil {
-		w.ResultsChan <- Result{Error: err}
-		return
-	}
-	defer resp.Body.Close()
-
 	duration := time.Since(startTime)
-
 	w.ResultsChan <- Result{
 		Duration:   duration,
-		StatusCode: resp.StatusCode,
+		StatusCode: 200,
 	}
 }
