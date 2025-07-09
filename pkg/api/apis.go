@@ -92,6 +92,7 @@ func LoadApis(apiFilePath string, cfg *config.Config) error {
 					return
 				}
 				response = respMap
+				response["code"] = resp.StatusCode
 			}
 			return
 		}

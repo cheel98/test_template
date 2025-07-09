@@ -52,7 +52,12 @@ func main() {
 	totalCasesCompleted := 0
 	for _, testCase := range testFlow.Cases {
 		fmt.Printf("Running test case: %s\n", testCase.Name)
-		requestsChan := make(chan config.TestCase, testCase.Loop*len(testCase.Steps))
+		// Calculate buffer size based on loop and thread count
+		bufferSize := testCase.Loop * testCase.Thread
+		if bufferSize == 0 {
+			bufferSize = 1
+		}
+		requestsChan := make(chan config.TestCase, bufferSize)
 		var wg sync.WaitGroup
 
 		for i := 0; i < testCase.Thread; i++ {

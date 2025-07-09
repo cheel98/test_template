@@ -58,7 +58,7 @@ func GenerateReport(results []worker.Result, totalDuration time.Duration, totalC
 		fmt.Println("\n--- Errors ---")
 		for _, r := range results {
 			if r.Error != nil {
-				fmt.Printf("- %v\n", r.Error)
+				fmt.Printf("- method:  %s  %v\n", r.Method, r.Error)
 			}
 		}
 	}

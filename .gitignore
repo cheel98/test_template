@@ -1,0 +1,9 @@
+# Ignore all files starting with a dot
+.*
+
+# But don't ignore .gitignore itself
+!.gitignore
+
+# Common exceptions you might want to include
+!.gitkeep
+!.env.example
